@@ -1,0 +1,61 @@
+#!/bin/bash
+# This script is a little ditty I modified to basically output something to the terminal screen every couple of seconds.
+# It was origianlly developed to defeat ssh timeouts for long-running sessions.
+# It relies heavily on tput and stty to get and set your terminal position, and on magic.
+# If you have questions, I won't know how to answer them.
+#
+# Usage:  me [ commmand ]
+# Generally, it provides a rotating -\|/ spinner and the current date to be displayed in the upper right corner of the screen, refreshed every 3 seconds.
+# You can override the default command from `date` to something else, but not that this won't work for complex commands at all.
+#set -x
+#set -v
+
+ctrlc() {
+  tput cup "$row" "$col"
+  exit 0
+}
+
+getcurrent() {
+  # Get current position, stored in $row and $col.  HORRIBLE hack, gotten from
+  # http://stackoverflow.com/questions/2575037/how-to-get-the-cursor-position-in-bash
+  exec < /dev/tty
+  oldstty=$(stty -g)
+  stty raw -echo min 0
+  echo -en "\033[6n" > /dev/tty
+  IFS=';' read -r -d R -a mypos
+  stty "$oldstty"
+  # change from one-based to zero based so they work with: tput cup $row $col
+  row=$((${mypos[0]:2} - 1))    # strip off the esc-[
+  col=$((mypos[1] - 1))
+}
+
+getposition () {
+  cmdchk=$($cmd)
+  padding=3
+  pos=$((cols-${#cmdchk}-padding))
+}
+
+getcurrent
+
+i=1
+sp="-\|/"
+cols=$(tput cols)
+cmd="date"
+if [ -n "$1" ] ; then
+  cmd="$*"
+fi
+
+trap ctrlc SIGINT
+while true ;
+do
+  # Calculate where I want the check to be
+  getposition
+  tput cup 0 "$pos"
+  printf '%s' "$blanks"
+  tput cup 0 "$pos"
+  printf ' %s %s' "${sp:i++%${#sp}:1}" "$($cmd)"
+  blanks=$(printf ' %s %s' "${sp:i++%${#sp}:1}" "$($cmd)" | sed 's/./ /g')
+  sleep 3
+  i=$((i % ${#sp}))
+done
+ctrlc
