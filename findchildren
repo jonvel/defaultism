@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Usage:
+# ${0} iamgeid
+# where imageid is the "parent" image for which you want to find all child
+# docker images that you depend on.  It's not fast.
+
+ME=${0}
+
+function usage () {
+  echo "Usage:  ${ME} imageid"
+}
+
+child=${1}
+
+if [ -z $child ] ; then
+  echo "ERROR: needs one argument" >&2
+  usage
+  exit 1
+fi
+
+printf "for parent image ${child}, these are the children:\n"
+IFS=$'\n'
+for line in $(docker images)
+do
+  imageid=$(echo $line | awk '{print $3}')
+  # skip the first line, which just has the column header summaries
+  if [ ! "$imageid" == "IMAGE" ] ; then
+    docker history $imageid | grep -q ${child} && echo $line | awk '{print $3, "\t", $1 ":" $2}'
+  fi
+done
