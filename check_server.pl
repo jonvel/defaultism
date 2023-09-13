@@ -29,6 +29,7 @@ while ($line=<DOCKERLOG>) {
     ($logdate, $logtime, $userid, $sessionid)=@lineArr[5, 6, 11, 13];
     # logtime ends in a `:`.  Trim that off.
     chop($logtime);
+    next if ("$sessionid" eq '0:0');
     $userlog{$sessionid}{'userid'}=$userid;
     $userlog{$sessionid}{'logon'}=$logdate.".".$logtime;
     $userlog{$sessionid}{'logoff'}="STILL LOGGED IN";
