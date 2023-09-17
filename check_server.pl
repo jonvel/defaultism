@@ -14,6 +14,15 @@ my $logtime;
 my $userid;
 my $sessionid;
 my %userlog;
+# Noticed that sometimes, there are bad sessions that appear.  Just exclude
+# them from processing.  Take advantage of the `exists` function in perl to
+# not have to iterate over all entries in an array of bad sessionid's.
+my %badsessions = (
+      "0:0" => 1,
+      "-167440265:1" => 1,
+      "-573144449:1" => 1,
+      "-278937435:1" => 1
+    );
 
 open DOCKERLOG, "docker logs $container |";
 while ($line=<DOCKERLOG>) {
@@ -29,7 +38,11 @@ while ($line=<DOCKERLOG>) {
     ($logdate, $logtime, $userid, $sessionid)=@lineArr[5, 6, 11, 13];
     # logtime ends in a `:`.  Trim that off.
     chop($logtime);
-    next if ("$sessionid" eq '0:0');
+    if ( "$sessionid" =~ m/0:0/ ) {
+      printf("%-10s %-7s %-20s %-4s\n", "$userid", "DIED", "$logdate.$logtime", "$usercount");
+      next;
+    }
+    next if ( exists($badsessions{$sessionid})); # "$sessionid" eq '0:0');
     $userlog{$sessionid}{'userid'}=$userid;
     $userlog{$sessionid}{'logon'}=$logdate.".".$logtime;
     $userlog{$sessionid}{'logoff'}="STILL LOGGED IN";
@@ -66,9 +79,9 @@ close(DOCKERLOG);
 # sessionid.  The userid has to be inferred.
 my @printarr;
 foreach $sessionid (keys %userlog) {
-  @printarr[$i] = [("$userlog{$sessionid}{'logon'}", "$userlog{$sessionid}{'userid'}", 'logon', $userlog{$sessionid}{'logoncount'})]; 
+  @printarr[$i] = [("$userlog{$sessionid}{'logon'}", "$userlog{$sessionid}{'userid'}", 'logon', $userlog{$sessionid}{'logoncount'}, $sessionid)]; 
   $i++;
-  @printarr[$i] = [("$userlog{$sessionid}{'logoff'}", "$userlog{$sessionid}{'userid'}", 'logoff', $userlog{$sessionid}{'logoffcount'})]; 
+  @printarr[$i] = [("$userlog{$sessionid}{'logoff'}", "$userlog{$sessionid}{'userid'}", 'logoff', $userlog{$sessionid}{'logoffcount'}, $sessionid)]; 
   $i++;
 }
 
@@ -78,9 +91,13 @@ foreach $sessionid (keys %userlog) {
 # that's what we sort by - namely the dereferenced value of the first 
 # element of the array.
 my @by_date = sort {$a->[0] cmp $b->[0]} @printarr;
-printf("%-10s %-7s %-20s %-4s\n", "UserId", "Status", "mm/dd/YYYY.HH:MM:SS", "usercount");
+printf("%-10s %-7s %-20s %-4s %-10s\n", "UserId", "Status", "mm/dd/YYYY.HH:MM:SS", "usercount", "SessionID");
+my $tempcount = $usercount;
 for my $row (@by_date) {
-  printf("%-10s %-7s %-20s %-4d\n", $row->[1], $row->[2], $row->[0], $row->[3]);
+  unless ( "$row->[0]" =~ m/STILl LOGGED IN/ ) {
+    $tempcount = $row->[3];
+  }
+  printf("%-10s %-7s %-20s %-4d %-10s\n", $row->[1], $row->[2], $row->[0], $row->[3], $row->[4]);
 }
 
 if ( $usercount == 1 ) {
