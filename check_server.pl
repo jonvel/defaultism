@@ -20,6 +20,8 @@ my %activeSessions;
 # @userlog = [ name, sessionid, eventype, date, currentusers ]
 # eventtype is [ logon, logoff, died ]
 
+printf("%-10s %-7s %-20s %-4s\n", "userid", "status", "Event day.time", "usercount");
+printf("%-10s %-7s %-20s %-4s\n", "======", "======", "==============", "=========");
 open DOCKERLOG, "docker logs $container |";
 while ($line=<DOCKERLOG>) {
   chomp $line;
@@ -42,7 +44,7 @@ while ($line=<DOCKERLOG>) {
       # this means a user died.  Set status to "died"
       $status = "DIED";
       printf("%-10s %-7s %-20s %-4s\n", "$userid", "$status", "$logdate.$logtime", "$usercount");
-      @userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
+      #@userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
       $i++;
       next;
     }
@@ -53,7 +55,7 @@ while ($line=<DOCKERLOG>) {
     $activeSessions{$sessionid} = $userid;
     $status = "logon";
     $usercount += 1;
-    @userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
+    #@userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
     printf("%-10s %-7s %-20s %-4s\n", "$userid", "$status", "$logdate.$logtime", "$usercount");
     $i++;
     next;
@@ -75,7 +77,7 @@ while ($line=<DOCKERLOG>) {
     $userid = $activeSessions{$sessionid};
     $usercount -= 1;
     $status = "logoff";
-    @userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
+    #@userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
     $i++;
     delete($activeSessions{$sessionid});
     printf("%-10s %-7s %-20s %-4s\n", $userid, "logoff", "$logdate.$logtime", "$usercount");
