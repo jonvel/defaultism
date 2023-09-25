@@ -20,8 +20,8 @@ my %activeSessions;
 # @userlog = [ name, sessionid, eventype, date, currentusers ]
 # eventtype is [ logon, logoff, died ]
 
-printf("%-10s %-7s %-20s %-4s\n", "userid", "status", "Event day.time", "usercount");
-printf("%-10s %-7s %-20s %-4s\n", "======", "======", "==============", "=========");
+printf("%-12s %-7s %-20s %-4s\n", "userid", "status", "Event day.time", "usercount");
+printf("%-12s %-7s %-20s %-4s\n", "======", "======", "==============", "=========");
 open DOCKERLOG, "docker logs $container |";
 while ($line=<DOCKERLOG>) {
   chomp $line;
@@ -43,7 +43,7 @@ while ($line=<DOCKERLOG>) {
     if ( "$sessionid" == 0 ) {
       # this means a user died.  Set status to "died"
       $status = "DIED";
-      printf("%-10s %-7s %-20s %-4s\n", "$userid", "$status", "$logdate.$logtime", "$usercount");
+      printf("%-12s %-7s %-20s %-4s\n", "$userid", "$status", "$logdate.$logtime", "$usercount");
       #@userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
       $i++;
       next;
@@ -56,7 +56,7 @@ while ($line=<DOCKERLOG>) {
     $status = "logon";
     $usercount += 1;
     #@userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
-    printf("%-10s %-7s %-20s %-4s\n", "$userid", "$status", "$logdate.$logtime", "$usercount");
+    printf("%-12s %-7s %-20s %-4s\n", "$userid", "$status", "$logdate.$logtime", "$usercount");
     $i++;
     next;
   }
@@ -80,9 +80,23 @@ while ($line=<DOCKERLOG>) {
     #@userlog[$i] = [("$userid", $sessionid, $status, "$logdate.$logtime", "$usercount")];
     $i++;
     delete($activeSessions{$sessionid});
-    printf("%-10s %-7s %-20s %-4s\n", $userid, "logoff", "$logdate.$logtime", "$usercount");
+    printf("%-12s %-7s %-20s %-4s\n", $userid, "logoff", "$logdate.$logtime", "$usercount");
+    next;
+  }
+  elsif ($line =~ m/Random event set:/) {
+    @lineArr = split(/\s+/, $line);
+    # OK, no sessionid, but need somethign to hold set:<creaturetype>
+    ($logdate, $logtime, $userid)=@lineArr[5, 6, 9];
+    chop($logtime);
+    ($deletesessionid, $userid) = split(/:/, $userid);
+    printf("%-12s %-7s %-20s %-4s\n", $userid, "RAID!", "$logdate.$logtime", "$usercount");
     next;
   }
 }
 close(DOCKERLOG);
 
+if (%activeSessions) {
+  foreach $sessionid (sort keys %activeSessions) {
+    printf("$activeSessions{$sessionid} is still onine\n");
+  }
+}
